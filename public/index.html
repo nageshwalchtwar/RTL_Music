@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RTL Music Jukebox</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0f0f1a;
+      --surface: #1a1a2e;
+      --surface2: #222240;
+      --accent: #e94560;
+      --accent2: #0f3460;
+      --text: #eee;
+      --text-dim: #888;
+      --green: #1db954;
+      --radius: 12px;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    }
+    .header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .header h1 span { font-size: 1.8rem; }
+    .users-badge {
+      background: rgba(255,255,255,0.15);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      backdrop-filter: blur(10px);
+    }
+
+    /* Main layout */
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      gap: 20px;
+    }
+
+    /* Drop zone / URL input */
+    .add-section {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 24px;
+      border: 2px dashed #333;
+      transition: all 0.3s;
+    }
+    .add-section.drag-over {
+      border-color: var(--accent);
+      background: rgba(233, 69, 96, 0.08);
+    }
+    .add-section h2 {
+      font-size: 1rem;
+      color: var(--text-dim);
+      margin-bottom: 14px;
+      text-align: center;
+    }
+    .input-row {
+      display: flex;
+      gap: 10px;
+    }
+    .input-row input {
+      flex: 1;
+      padding: 12px 16px;
+      border-radius: 8px;
+      border: 1px solid #333;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .input-row input:focus {
+      border-color: var(--accent);
+    }
+    .input-row input::placeholder {
+      color: #555;
+    }
+    .name-input {
+      max-width: 150px;
+    }
+    .btn {
+      padding: 12px 24px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+    .btn-primary:hover {
+      background: #ff5a75;
+      transform: translateY(-1px);
+    }
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      border-radius: 6px;
+    }
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-dim);
+      border: 1px solid #333;
+    }
+    .btn-ghost:hover {
+      background: rgba(255,255,255,0.05);
+      color: var(--text);
+    }
+
+    /* Now playing */
+    .now-playing {
+      background: var(--surface);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .player-wrapper {
+      position: relative;
+      width: 100%;
+      padding-top: 56.25%;
+      background: #000;
+    }
+    .player-wrapper iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    .player-empty {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-dim);
+      font-size: 1.1rem;
+      gap: 10px;
+    }
+    .player-empty span { font-size: 3rem; }
+    .controls {
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+    }
+    .control-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: none;
+      background: var(--surface2);
+      color: var(--text);
+      font-size: 1.2rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    .control-btn:hover {
+      background: var(--accent);
+      transform: scale(1.1);
+    }
+    .control-btn.play-btn {
+      width: 56px;
+      height: 56px;
+      background: var(--accent);
+      font-size: 1.4rem;
+    }
+    .control-btn.play-btn:hover {
+      background: #ff5a75;
+    }
+    .now-playing-title {
+      text-align: center;
+      padding: 0 20px 16px;
+      font-size: 0.95rem;
+      color: var(--text-dim);
+    }
+    .now-playing-title strong {
+      color: var(--text);
+    }
+
+    /* Queue */
+    .queue-section {
+      background: var(--surface);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .queue-header {
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #222;
+    }
+    .queue-header h2 {
+      font-size: 1.1rem;
+    }
+    .queue-list {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .queue-item {
+      display: flex;
+      align-items: center;
+      padding: 12px 20px;
+      gap: 14px;
+      cursor: pointer;
+      transition: background 0.15s;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+    .queue-item:hover {
+      background: rgba(255,255,255,0.03);
+    }
+    .queue-item.active {
+      background: rgba(233, 69, 96, 0.1);
+      border-left: 3px solid var(--accent);
+    }
+    .queue-num {
+      width: 24px;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 0.85rem;
+      flex-shrink: 0;
+    }
+    .queue-item.active .queue-num {
+      color: var(--accent);
+    }
+    .queue-thumb {
+      width: 64px;
+      height: 36px;
+      border-radius: 4px;
+      object-fit: cover;
+      flex-shrink: 0;
+      background: #111;
+    }
+    .queue-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .queue-title {
+      font-size: 0.9rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .queue-added {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+    .queue-remove {
+      opacity: 0;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 1.1rem;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .queue-item:hover .queue-remove { opacity: 1; }
+    .queue-remove:hover { color: var(--accent); background: rgba(233,69,96,0.15); }
+    .queue-empty {
+      padding: 40px 20px;
+      text-align: center;
+      color: var(--text-dim);
+    }
+    .queue-empty span { font-size: 2rem; display: block; margin-bottom: 8px; }
+
+    /* Toast notification */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--accent);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s;
+      z-index: 200;
+    }
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    /* Error toast */
+    .toast.error { background: #c0392b; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+    /* Mobile */
+    @media (max-width: 600px) {
+      .header h1 { font-size: 1.2rem; }
+      .input-row { flex-wrap: wrap; }
+      .name-input { max-width: none; }
+      .container { padding: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1><span>🎵</span> RTL Music Jukebox</h1>
+  <div class="users-badge" id="usersBadge">👥 1 online</div>
+</div>
+
+<div class="container">
+  <!-- Add Song -->
+  <div class="add-section" id="dropZone">
+    <h2>Drag & drop a YouTube link here, or paste below</h2>
+    <div class="input-row">
+      <input type="text" id="urlInput" placeholder="Paste YouTube URL..." autofocus>
+      <input type="text" id="nameInput" class="name-input" placeholder="Your name" maxlength="20">
+      <button class="btn btn-primary" id="addBtn">Add ▶</button>
+    </div>
+  </div>
+
+  <!-- Now Playing -->
+  <div class="now-playing">
+    <div class="player-wrapper" id="playerWrapper">
+      <div class="player-empty" id="playerEmpty">
+        <span>🎧</span>
+        Add a YouTube link to start the music!
+      </div>
+    </div>
+    <div class="controls">
+      <button class="control-btn" id="prevBtn" title="Previous">⏮</button>
+      <button class="control-btn play-btn" id="playBtn" title="Play/Pause">▶</button>
+      <button class="control-btn" id="nextBtn" title="Next">⏭</button>
+    </div>
+    <div class="now-playing-title" id="nowPlayingTitle"></div>
+  </div>
+
+  <!-- Queue -->
+  <div class="queue-section">
+    <div class="queue-header">
+      <h2>Queue <span id="queueCount"></span></h2>
+      <button class="btn btn-sm btn-ghost" id="clearBtn">Clear All</button>
+    </div>
+    <div class="queue-list" id="queueList">
+      <div class="queue-empty" id="queueEmpty">
+        <span>📭</span>
+        Queue is empty — add some songs!
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  // YouTube IFrame API
+  let player = null;
+  let playerReady = false;
+  let currentVideoId = null;
+  let state = { queue: [], currentIndex: -1, isPlaying: false };
+
+  // Load YouTube API
+  const tag = document.createElement('script');
+  tag.src = 'https://www.youtube.com/iframe_api';
+  document.head.appendChild(tag);
+
+  window.onYouTubeIframeAPIReady = function() {
+    player = new YT.Player('ytPlayer', {
+      height: '100%',
+      width: '100%',
+      playerVars: {
+        autoplay: 1,
+        controls: 1,
+        rel: 0,
+        modestbranding: 1
+      },
+      events: {
+        onReady: () => { playerReady = true; syncPlayer(); },
+        onStateChange: onPlayerStateChange
+      }
+    });
+  };
+
+  // Create the player div inside wrapper
+  const wrapper = document.getElementById('playerWrapper');
+  const playerDiv = document.createElement('div');
+  playerDiv.id = 'ytPlayer';
+  wrapper.appendChild(playerDiv);
+
+  function onPlayerStateChange(event) {
+    // YT.PlayerState.ENDED = 0
+    if (event.data === 0) {
+      socket.emit('songEnded');
+    }
+    // Try to get video title
+    if (event.data === 1 && player && player.getVideoData) {
+      const data = player.getVideoData();
+      if (data && data.title && state.queue[state.currentIndex]) {
+        const song = state.queue[state.currentIndex];
+        if (song.title === 'Loading...') {
+          socket.emit('updateTitle', { id: song.id, title: data.title });
+        }
+      }
+    }
+  }
+
+  // Socket.IO
+  const socket = io();
+
+  socket.on('state', (newState) => {
+    state = newState;
+    renderQueue();
+    syncPlayer();
+    updateNowPlaying();
+    updatePlayButton();
+  });
+
+  socket.on('users', (count) => {
+    document.getElementById('usersBadge').textContent = `👥 ${count} online`;
+  });
+
+  socket.on('error', (msg) => {
+    showToast(msg, true);
+  });
+
+  function syncPlayer() {
+    if (!playerReady || !player) return;
+
+    const emptyEl = document.getElementById('playerEmpty');
+
+    if (state.currentIndex === -1 || state.queue.length === 0) {
+      emptyEl.style.display = 'flex';
+      if (currentVideoId) {
+        player.stopVideo();
+        currentVideoId = null;
+      }
+      return;
+    }
+
+    emptyEl.style.display = 'none';
+    const song = state.queue[state.currentIndex];
+
+    if (song.videoId !== currentVideoId) {
+      currentVideoId = song.videoId;
+      player.loadVideoById(song.videoId);
+    }
+
+    if (state.isPlaying) {
+      player.playVideo();
+    } else {
+      player.pauseVideo();
+    }
+  }
+
+  function updateNowPlaying() {
+    const el = document.getElementById('nowPlayingTitle');
+    if (state.currentIndex >= 0 && state.queue[state.currentIndex]) {
+      const song = state.queue[state.currentIndex];
+      el.innerHTML = `Now playing: <strong>${escapeHtml(song.title)}</strong> — added by ${escapeHtml(song.addedBy)}`;
+    } else {
+      el.textContent = '';
+    }
+  }
+
+  function updatePlayButton() {
+    document.getElementById('playBtn').textContent = state.isPlaying ? '⏸' : '▶';
+  }
+
+  function renderQueue() {
+    const list = document.getElementById('queueList');
+    const emptyEl = document.getElementById('queueEmpty');
+    const countEl = document.getElementById('queueCount');
+
+    countEl.textContent = state.queue.length ? `(${state.queue.length})` : '';
+
+    if (state.queue.length === 0) {
+      emptyEl.style.display = 'block';
+      // Remove song items but keep empty message
+      Array.from(list.querySelectorAll('.queue-item')).forEach(el => el.remove());
+      return;
+    }
+
+    emptyEl.style.display = 'none';
+
+    // Rebuild queue
+    const fragment = document.createDocumentFragment();
+    state.queue.forEach((song, i) => {
+      const item = document.createElement('div');
+      item.className = 'queue-item' + (i === state.currentIndex ? ' active' : '');
+      item.innerHTML = `
+        <span class="queue-num">${i === state.currentIndex ? '♫' : i + 1}</span>
+        <img class="queue-thumb" src="https://img.youtube.com/vi/${encodeURIComponent(song.videoId)}/default.jpg" alt="" loading="lazy">
+        <div class="queue-info">
+          <div class="queue-title">${escapeHtml(song.title)}</div>
+          <div class="queue-added">Added by ${escapeHtml(song.addedBy)}</div>
+        </div>
+        <button class="queue-remove" data-index="${i}" title="Remove">✕</button>
+      `;
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('.queue-remove')) return;
+        socket.emit('playSong', i);
+      });
+      item.querySelector('.queue-remove').addEventListener('click', () => {
+        socket.emit('removeSong', i);
+      });
+      fragment.appendChild(item);
+    });
+
+    // Remove old items
+    Array.from(list.querySelectorAll('.queue-item')).forEach(el => el.remove());
+    list.appendChild(fragment);
+  }
+
+  // Add song
+  function addSong() {
+    const url = document.getElementById('urlInput').value.trim();
+    if (!url) return;
+
+    const name = document.getElementById('nameInput').value.trim() || 'Anonymous';
+    // Save name to localStorage
+    localStorage.setItem('rtl_music_name', name);
+
+    socket.emit('addSong', { url, addedBy: name });
+    document.getElementById('urlInput').value = '';
+    showToast('Song added to queue!');
+  }
+
+  document.getElementById('addBtn').addEventListener('click', addSong);
+  document.getElementById('urlInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') addSong();
+  });
+
+  // Restore saved name
+  const savedName = localStorage.getItem('rtl_music_name');
+  if (savedName) document.getElementById('nameInput').value = savedName;
+
+  // Controls
+  document.getElementById('playBtn').addEventListener('click', () => socket.emit('togglePlay'));
+  document.getElementById('nextBtn').addEventListener('click', () => socket.emit('next'));
+  document.getElementById('prevBtn').addEventListener('click', () => socket.emit('prev'));
+  document.getElementById('clearBtn').addEventListener('click', () => {
+    if (confirm('Clear the entire queue?')) socket.emit('clearQueue');
+  });
+
+  // Drag & Drop
+  const dropZone = document.getElementById('dropZone');
+
+  dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('drag-over');
+  });
+  dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('drag-over');
+  });
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+
+    // Try to get URL from dropped data
+    let url = e.dataTransfer.getData('text/uri-list') ||
+              e.dataTransfer.getData('text/plain') || '';
+    url = url.trim().split('\n')[0]; // Take first line
+
+    if (url) {
+      document.getElementById('urlInput').value = url;
+      addSong();
+    }
+  });
+
+  // Also handle paste
+  document.addEventListener('paste', (e) => {
+    if (document.activeElement.tagName === 'INPUT') return;
+    const text = e.clipboardData.getData('text').trim();
+    if (text && (text.includes('youtube') || text.includes('youtu.be'))) {
+      document.getElementById('urlInput').value = text;
+      addSong();
+    }
+  });
+
+  // Toast
+  function showToast(msg, isError = false) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.className = 'toast show' + (isError ? ' error' : '');
+    setTimeout(() => toast.className = 'toast', 2500);
+  }
+
+  // Escape HTML to prevent XSS
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+</script>
+
+</body>
+</html>
